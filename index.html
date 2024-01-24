@@ -59,6 +59,14 @@
     <button onclick="loadExample()">Load example data to test</button>
     <textarea id="input" placeholder="Paste your csv here" onchange="main()"></textarea>
     <label>Number of groups: <input type="number" id="numGroups" value="3" onchange="main()" style="width: 3em"></label>
+    <label>
+        Delimiter:
+        <select id="delimiter" onchange="main()">
+            <option value=",">Comma (,)</option>
+            <option value=";">Semicolon (;)</option>
+            <option value="&#9;">Tab (\t)</option>
+        </select>
+    </label>
     <div class="row" id="headerFilter">
         <span>Use the following columns to group:</span>
     </div>
@@ -107,6 +115,7 @@
         const numGroups = document.getElementById('numGroups');
         const headerFilter = document.getElementById('headerFilter');
         const groups = document.getElementById('groups');
+        const delimiter = document.getElementById('delimiter');
 
         function getHeaderFilter() {
             return [...headerFilter.querySelectorAll('input[type=checkbox]')].map(el => [el.name, el.checked]);
@@ -134,7 +143,7 @@
                 nonSortingHeaders = getHeaderFilter().map(val => val[0]);
             }
             
-            groups.innerHTML = g.map((group, i) => `<span><b>Group ${i+1}</b><br>${toCsv(nonSortingHeaders, group).split('\n').splice(1).join('<br>')}</span>`).join('')
+            groups.innerHTML = g.map((group, i) => `<span><b>Group&nbsp;${i+1}</b><br>${toCsv(nonSortingHeaders, group, delimiter.value).split('\n').splice(1).join('<br>')}</span>`).join('')
         }
 
         function loadExample() {
@@ -149,12 +158,12 @@
                 updateGroups([], 0);
                 return;
             };
-            const { header, data } = parseCsv(input.value);
+            const { header, data } = parseCsv(input.value, delimiter.value);
             updateHeaderFilter(header);
             const result = groupShuffle(data, getHeaderFilter().filter(el => el[1]).map(el => el[0]));
             addGroup(result, +numGroups.value);
             updateGroups(result, +numGroups.value);
-            output.value = toCsv(['group', ...header], result);
+            output.value = toCsv(['group', ...header], result, delimiter.value);
         }
         main();
     </script>
