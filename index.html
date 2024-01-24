@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Group different</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            max-width: 900px;
+            margin: auto;
+            background: #eee;
+            font-family: sans-serif;
+            gap: 1em;
+        }
+        h1 {
+            margin-bottom: 0;
+        }
+        textarea {
+            min-height: 200px;
+        }
+
+        input[type=checkbox] {
+            display: none;
+        }
+
+        label:has(input[type=checkbox]) {
+            border: 1px solid #999;
+            padding: 0.5em;
+            border-radius: 100vw;
+            color: #999;
+        }
+
+        label:has(input[type=checkbox]:checked) {
+            border-color: black;
+            color: black
+        }
+        .row {
+            display: flex;
+            gap: 1em;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 0.5em;
+        }
+        #groups span {
+            border: 1px solid #999;
+            padding: 0.5em;
+            background: white;
+            border-radius: 0.5em;
+            box-shadow: 0 0 0.5rem #999;
+        }
+    </style>
+</head>
+<body>
+    <h1>Group different</h1>
+    <p>Group elements into a requested number of groups such that elements in each group are as different as possible.</p>
+    <button onclick="loadExample()">Load example data to test</button>
+    <textarea id="input" placeholder="Paste your csv here" onchange="main()"></textarea>
+    <label>Number of groups: <input type="number" id="numGroups" value="3" onchange="main()" style="width: 3em"></label>
+    <div class="row" id="headerFilter">
+        <span>Use the following columns to group:</span>
+    </div>
+    <button onclick="main()">Let's group!</button>
+    <textarea id="output" placeholder="Result will show up here"></textarea>
+    <div class="row" id="groups"><span>a<br>b</span><span>c<br>d</span></div>
+    <script>
+        function parseCsv(csv, delimiter=',') {
+            const rows = csv.split('\n').map(row => row.trim().split(delimiter));
+            const header = rows[0];
+            return {
+                header,
+                data: rows.slice(1).map(row => row.reduce((acc, val, i) => {
+                    acc[header[i]] = val;
+                    return acc;
+                }, {})),
+            };
+        }
+
+        function toCsv(header, data, delimiter=',') {
+            const rows = data.map(row => header.map(key => row[key]));
+            return [header, ...rows].map(row => row.join(delimiter)).join('\n');
+        }
+
+        function groupShuffle(data, keys) {
+            if (!keys.length) return data;
+            const groups = {};
+            const key = keys[0];
+            data.forEach(row => {
+                const group = row[key];
+                if (!groups[group]) groups[group] = [];
+                groups[group].push(row);
+            });
+            const result = Object.values(groups).map(group => groupShuffle(group, keys.slice(1)));
+            result.sort(() => Math.random() - 0.5);
+            return result.flat();
+        }
+
+        function addGroup(data, numGroups) {
+            data.forEach((row, i) => row.group = i%numGroups+1)
+            data.sort((a, b) => a.group - b.group);
+        }
+
+        const input = document.getElementById('input');
+        const output = document.getElementById('output');
+        const numGroups = document.getElementById('numGroups');
+        const headerFilter = document.getElementById('headerFilter');
+        const groups = document.getElementById('groups');
+
+        function getHeaderFilter() {
+            return [...headerFilter.querySelectorAll('input[type=checkbox]')].map(el => [el.name, el.checked]);
+        }
+
+        function arrayEquals(a, b) {
+            return a.length === b.length && a.every((v, i) => v === b[i]);
+        }
+
+        function updateHeaderFilter(header) {
+            if (arrayEquals(header, getHeaderFilter().map(el => el[0]))) return;
+            console.log(header, getHeaderFilter().map(v => v[0]));
+            console.log(header == getHeaderFilter().map(v => v[0]));
+            headerFilter.querySelectorAll('label').forEach(el => el.remove());
+            header.forEach((name, i) => {
+                headerFilter.innerHTML += (`<label>${name} <input type="checkbox" name="${name}" ${i > 0 ? 'checked' : ''} onchange="main()"></label>`)
+            })
+        }
+
+        function updateGroups(data, numGroups) {
+            const g = new Array(numGroups).fill().map((x) => []);
+            data.forEach(row => g[row.group-1].push(row));
+            let nonSortingHeaders = getHeaderFilter().filter(ev => !ev[1]).map(val => val[0]);
+            if (nonSortingHeaders.length == 0) {
+                nonSortingHeaders = getHeaderFilter().map(val => val[0]);
+            }
+            
+            groups.innerHTML = g.map((group, i) => `<span><b>Group ${i+1}</b><br>${toCsv(nonSortingHeaders, group).split('\n').splice(1).join('<br>')}</span>`).join('')
+        }
+
+        function loadExample() {
+            input.value = `name,department,team\nMaks,IT,1\nJohn,IT,1\nBob,IT,1\nXYZ,IT,2\nAlice,OP,\nFrank,OP,\nGreg,OP,\nMike,X,1\nTom,X,1`
+            main();
+        }
+
+        function main() {
+            if (input.value === '') {
+                output.value = '';
+                updateHeaderFilter([]);
+                updateGroups([], 0);
+                return;
+            };
+            const { header, data } = parseCsv(input.value);
+            updateHeaderFilter(header);
+            const result = groupShuffle(data, getHeaderFilter().filter(el => el[1]).map(el => el[0]));
+            addGroup(result, +numGroups.value);
+            updateGroups(result, +numGroups.value);
+            output.value = toCsv(['group', ...header], result);
+        }
+        main();
+    </script>
+</body>
+</html>
